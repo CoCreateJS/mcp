@@ -1,0 +1,38 @@
+{
+  "name": "@cocreate/mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server integration for CoCreate Server.",
+  "keywords": [
+    "cocreate",
+    "mcp",
+    "model-context-protocol",
+    "server",
+    "integration"
+  ],
+  "type": "module",
+  "main": "./src/server.js",
+  "exports": {
+    ".": "./src/server.js",
+    "./server": "./src/server.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CoCreateJS/mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CoCreateJS/mcp/issues"
+  },
+  "homepage": "https://CoCreateJS.com/docs/mcp",
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "CoCreate LLC",
+  "license": "AGPL-3.0",
+  "dependencies": {
+    "@cocreate/config": "^2.0.2",
+    "@cocreate/utils": "^2.0.2"
+  }
+}
