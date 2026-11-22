@@ -94,10 +94,10 @@ export function createServerClusterTool({ server }) {
             }
 
             const workerOperations = new Set(['cordon', 'shed', 'drain']);
-            const masterOperations = new Set(['reboot', 'shutdown']);
+            const primaryOperations = new Set(['reboot', 'shutdown']);
             const supported = new Set([
               ...workerOperations,
-              ...masterOperations,
+              ...primaryOperations,
               'restart'
             ]);
             if (!supported.has(operation)) {
@@ -124,8 +124,8 @@ export function createServerClusterTool({ server }) {
               payload.value = value !== false;
             }
             if (operation === 'shed') payload.organizations = organizations;
-            if (masterOperations.has(operation) || (operation === 'restart' && worker == null)) {
-              payload.master = true;
+            if (primaryOperations.has(operation) || (operation === 'restart' && worker == null)) {
+              payload.primary = true;
             }
 
             await server.send(payload);

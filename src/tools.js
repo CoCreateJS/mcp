@@ -199,16 +199,16 @@ export function createBuiltInTools(server, { mcpPath = '/mcp' } = {}) {
                 if (action === 'control') {
                     if (!args.serverId) throw new Error('serverId is required for cluster control.');
                     const workerOperations = new Set(['cordon', 'shed', 'drain']);
-                    const masterOperations = new Set(['reboot', 'shutdown']);
+                    const primaryOperations = new Set(['reboot', 'shutdown']);
                     const operation = args.operation;
-                    if (![...workerOperations, ...masterOperations, 'restart'].includes(operation)) throw new Error(`Unsupported server control operation: ${operation}`);
+                    if (![...workerOperations, ...primaryOperations, 'restart'].includes(operation)) throw new Error(`Unsupported server control operation: ${operation}`);
                     if (workerOperations.has(operation) && args.worker == null) throw new Error(`worker is required for ${operation}.`);
                     if (operation === 'shed' && args.organizations === undefined) throw new Error('organizations is required for shed.');
                     const payload = { method: operation, server: args.serverId, organization_id: context.organization_id };
                     if (args.worker != null) payload.worker = args.worker;
                     if (operation === 'cordon' || operation === 'drain') payload.value = args.value !== false;
                     if (operation === 'shed') payload.organizations = args.organizations;
-                    if (masterOperations.has(operation) || (operation === 'restart' && args.worker == null)) payload.master = true;
+                    if (primaryOperations.has(operation) || (operation === 'restart' && args.worker == null)) payload.primary = true;
                     const authorized = await authorize(server, context, payload);
                     await server.send(authorized);
                     return { success: true, action, operation, payload: authorized };
