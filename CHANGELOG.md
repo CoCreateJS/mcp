@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/CoCreateJS/mcp/compare/v1.0.0...v1.0.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **mcp:** target primary server controls ([ee9af14](https://github.com/CoCreateJS/mcp/commit/ee9af1480a052f6a3f63681d7d8faceeb2e3a62d))
+
 # 1.0.0 (2026-11-18)
 
 
