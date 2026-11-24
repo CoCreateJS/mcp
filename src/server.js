@@ -88,6 +88,49 @@ function trustedAgentRequest(context, modelId) {
     };
 }
 
+/** Normalize a provider envelope through the configured mcp workflow. */
+async function normalizeAgentCall(server, message, context, options) {
+    const callId = `mcp-${message.id ?? randomUUID()}`;
+    const provider = options.provider || 'mcp';
+    let normalized;
+
+    if (typeof server.workflow?.execute === 'function') {
+        const workflowRequest = await server.authorize.request({
+            method: 'workflow.mcp',
+            organization_id: context.organization_id,
+            host: context.host,
+            ...(context.user_id && { user_id: context.user_id }),
+            ...(context.apikey && { apikey: context.apikey }),
+            mcp: [{ provider, request: message, callId }]
+        }, context.user_id);
+        normalized = await server.workflow.execute(workflowRequest);
+    } else {
+        // Keep compatibility with deployments before the mcp workflow is seeded.
+        const { name, arguments: args = {} } = message.params || {};
+        normalized = {
+            data: { agent: { calls: [{ id: callId, name, arguments: args }] } }
+        };
+    }
+
+    if (normalized?.error?.length)
+        throw new Error(normalized.error.join(', '));
+
+    const call = normalized?.data?.agent?.calls?.[0];
+    if (!call || typeof call.name !== 'string' || !isPlainObject(call.arguments))
+        throw Object.assign(new Error('The MCP workflow did not return a valid Agent call.'), { code: -32602 });
+
+    return {
+        ...trustedAgentRequest(context, options.modelId),
+        agent: {
+            calls: [{
+                id: call.id || callId,
+                name: call.name,
+                arguments: call.arguments
+            }]
+        }
+    };
+}
+
 function mcpTool(definition) {
     if (!definition || typeof definition.name !== 'string' ||
         typeof definition.path !== 'string' || typeof definition.method !== 'string')
@@ -281,28 +324,16 @@ export function init(server, options = {}) {
             }
 
             if (message.method === 'tools/call') {
-                const { name, arguments: args = {} } = message.params || {};
-                if (typeof name !== 'string' || !isPlainObject(args))
-                    return respond(jsonRpcError(message.id, -32602, 'A tool name and object arguments are required.'));
-
                 try {
+                    const request = await normalizeAgentCall(server, message, context, options);
+                    const call = request.agent.calls[0];
                     const definitions = await toolsForContext(context);
-                    const definition = definitions.find(tool => tool.name === name);
+                    const definition = definitions.find(tool => tool.name === call.name);
                     if (!definition)
                         return respond(jsonRpcError(message.id, -32602, 'Unknown Agent tool.'));
 
-                    const callId = `mcp-${message.id ?? randomUUID()}`;
-                    const result = await server.agent.execute({
-                        ...trustedAgentRequest(context, options.modelId),
-                        agent: {
-                            calls: [{
-                                id: callId,
-                                name,
-                                arguments: args
-                            }]
-                        }
-                    });
-                    const operation = result.agent?.executionResults?.find(item => item.callId === callId);
+                    const result = await server.agent.execute(request);
+                    const operation = result.agent?.executionResults?.find(item => item.callId === call.id);
                     const value = operation
                         ? toolValue(operation)
                         : result.error?.length
@@ -321,6 +352,8 @@ export function init(server, options = {}) {
 
                     return respond(jsonRpcResult(message.id, toolResult));
                 } catch (error) {
+                    if (error.code === -32602)
+                        return respond(jsonRpcError(message.id, error.code, error.message));
                     return respond(jsonRpcResult(message.id, {
                         content: [{ type: 'text', text: error.message || 'Agent execution failed.' }],
                         isError: true
